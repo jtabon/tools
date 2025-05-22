@@ -1,6 +1,6 @@
 flask
 flask_cors
-flask_limiter
+flask_limiter==3.5.1
 requests
 validators
 gunicorn
