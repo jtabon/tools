@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>URL Tester</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f7f9fc;
+        padding: 40px;
+        max-width: 800px;
+        margin: auto;
+      }
+
+      h1 {
+        text-align: center;
+        color: #333;
+      }
+
+      textarea {
+        width: 100%;
+        height: 180px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        resize: vertical;
+      }
+
+      button {
+        margin-top: 20px;
+        padding: 12px 24px;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+        margin-right: 10px;
+      }
+
+      /* Primary - Test URLs */
+      .button-primary {
+        background-color: #2563eb; /* blue-600 */
+      }
+
+      .button-primary:hover {
+        background-color: #1d4ed8; /* blue-700 */
+      }
+
+      /* Secondary - Clear (danger) */
+      .button-danger {
+        background-color: #dc2626; /* red-600 */
+      }
+
+      .button-danger:hover {
+        background-color: #b91c1c; /* red-700 */
+      }
+
+      /* Utility - Download */
+      .button-success {
+        background-color: #10b981; /* emerald-500 */
+      }
+
+      .button-success:hover {
+        background-color: #059669; /* emerald-600 */
+      }
+
+      .status {
+        margin-top: 15px;
+        font-weight: bold;
+        color: #555;
+        display: none;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-left-color: #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        vertical-align: middle;
+        margin-right: 10px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 30px;
+        table-layout: fixed;
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+        font-size: 14px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        vertical-align: top;
+      }
+
+      th:nth-child(1),
+      td:nth-child(1) {
+        width: 60%;
+      }
+
+      th:nth-child(2),
+      td:nth-child(2),
+      th:nth-child(3),
+      td:nth-child(3) {
+        width: 20%;
+      }
+
+      th {
+        background-color: #f1f3f5;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      .message-ok {
+        color: green;
+      }
+
+      .message-error {
+        color: red;
+      }
+
+      @media (max-width: 600px) {
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+          display: block;
+          width: 100%;
+        }
+
+        th {
+          background-color: #e9ecef;
+        }
+
+        td {
+          border: none;
+          border-bottom: 1px solid #ddd;
+        }
+
+        td:before {
+          font-weight: bold;
+          display: block;
+          margin-bottom: 5px;
+        }
+
+        td:nth-of-type(1):before {
+          content: 'URL';
+        }
+
+        td:nth-of-type(2):before {
+          content: 'Status Code';
+        }
+
+        td:nth-of-type(3):before {
+          content: 'Message';
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 URL Status Checker</h1>
+
+    <p>Paste one URL per line:</p>
+    <textarea
+      id="urlList"
+      placeholder="https://example.com&#10;https://anotherdomain.com"
+    ></textarea>
+
+    <button onclick="testUrls()" class="button-primary">Test URLs</button>
+    <button onclick="clearResults()" class="button-danger">Clear</button>
+    <button onclick="downloadCSV()" class="button-success">Download CSV</button>
+
+    <div class="status" id="statusMessage">
+      <span class="spinner" id="spinner"></span>
+      <span id="statusText">Testing URLs...</span>
+    </div>
+
+    <table id="resultsTable" style="display: none">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Status Code</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <script>
+      async function testUrls() {
+        const urls = document
+          .getElementById('urlList')
+          .value.split('\n')
+          .map((u) => u.trim())
+          .filter(Boolean);
+
+        const table = document.getElementById('resultsTable');
+        const tbody = table.querySelector('tbody');
+        const statusMsg = document.getElementById('statusMessage');
+        const statusText = document.getElementById('statusText');
+        const spinner = document.getElementById('spinner');
+
+        tbody.innerHTML = '';
+        table.style.display = 'none';
+        statusMsg.style.display = 'block';
+        spinner.style.display = 'inline-block';
+        statusText.innerText = 'Testing URLs...';
+
+        try {
+          const response = await fetch('/test-urls', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls }),
+          });
+
+          const results = await response.json();
+          for (const result of results) {
+            const row = `<tr>
+              <td>${result.url}</td>
+              <td>${result.status || '-'}</td>
+              <td class="${
+                result.status === 200 ? 'message-ok' : 'message-error'
+              }">
+                ${result.message}
+              </td>
+            </tr>`;
+            tbody.innerHTML += row;
+          }
+
+          table.style.display = 'table';
+          spinner.style.display = 'none';
+          statusText.innerText = '✅ Done!';
+        } catch (error) {
+          spinner.style.display = 'none';
+          statusText.innerText = '❌ Error while testing URLs.';
+          console.error(error);
+        }
+      }
+
+      function clearResults() {
+        document.getElementById('urlList').value = '';
+        document.getElementById('resultsTable').style.display = 'none';
+        document
+          .getElementById('resultsTable')
+          .querySelector('tbody').innerHTML = '';
+        document.getElementById('statusMessage').style.display = 'none';
+        document.getElementById('statusText').innerText = '';
+        document.getElementById('spinner').style.display = 'none';
+      }
+
+      function downloadCSV() {
+        const table = document.getElementById('resultsTable');
+        if (table.style.display === 'none') return;
+
+        const rows = table.querySelectorAll('tr');
+        let csv = [];
+
+        rows.forEach((row) => {
+          const cols = Array.from(row.querySelectorAll('th, td'));
+          const values = cols.map(
+            (col) => `"${col.innerText.replace(/"/g, '""')}"`
+          );
+          csv.push(values.join(','));
+        });
+
+        const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'url-results.csv';
+        a.click();
+
+        URL.revokeObjectURL(url);
+      }
+    </script>
+  </body>
+</html>
